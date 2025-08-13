@@ -4,126 +4,174 @@ import { useAuth } from '@/lib/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Navbar } from '@/components/navbar'
+import { UserDashboard } from '@/components/dashboards/UserDashboard'
+import { ModeratorDashboard } from '@/components/dashboards/ModeratorDashboard'
+import { AdminDashboard } from '@/components/dashboards/AdminDashboard'
 
 export default function DashboardPage() {
-  const { user, loading, logout, isAuthenticated } = useAuth()
-  const router = useRouter()
+    const { user, loading, logout, isAuthenticated } = useAuth()
+    const router = useRouter()
 
-  useEffect(() => {
-    if (!loading && !isAuthenticated()) {
-      router.push('/login')
+    useEffect(() => {
+        if (!loading && !isAuthenticated()) {
+            router.push('/login')
+        }
+    }, [loading, isAuthenticated, router])
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-screen">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
+                    <p className="mt-4">Loading...</p>
+                </div>
+            </div>
+        )
     }
-  }, [loading, isAuthenticated, router])
 
-  if (loading) {
+    if (!user) {
+        return null // Will redirect to login
+    }
+
+    const handleLogout = async () => {
+        await logout()
+        router.push('/login')
+    }
+
+    // Render role-specific dashboard
+    const renderDashboard = () => {
+        switch (user.role) {
+            case 'admin':
+                return <AdminDashboard user={user} />
+            case 'moderator':
+                return <ModeratorDashboard user={user} />
+            case 'user':
+            default:
+                return <UserDashboard user={user} />
+        }
+    }
+
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-gray-900"></div>
-          <p className="mt-4">Loading...</p>
+        <div className="min-h-screen bg-gray-50">
+            <Navbar />
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* Header with Logout */}
+                <div className="flex justify-between items-center mb-8">
+                    <div className="flex items-center space-x-4">
+                        <div>
+                            <h2 className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                                {user.role} Dashboard
+                            </h2>
+                        </div>
+                    </div>
+                    <Button onClick={handleLogout} variant="outline">
+                        Logout
+                    </Button>
+                </div>
+
+                {/* Role-specific Dashboard Content */}
+                {renderDashboard()}
+            </main>
         </div>
-      </div>
     )
-  }
-
-  if (!user) {
     return null // Will redirect to login
-  }
+}
 
-  const handleLogout = async () => {
+const handleLogout = async () => {
     await logout()
     router.push('/login')
-  }
 
-  return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <Button onClick={handleLogout} variant="outline">
-          Logout
-        </Button>
-      </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p><strong>Name:</strong> {user.name}</p>
-              <p><strong>Email:</strong> {user.email}</p>
-              <p><strong>Role:</strong> {user.role}</p>
-              <p><strong>Verified:</strong> {user.verified ? '✅ Yes' : '❌ No'}</p>
-              <p><strong>Approved:</strong> {user.approved ? '✅ Yes' : '❌ No'}</p>
+    return (
+        <div className="container mx-auto p-6">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-3xl font-bold">Dashboard</h1>
+                <Button onClick={handleLogout} variant="outline">
+                    Logout
+                </Button>
             </div>
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Skills</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {user.skills && user.skills.length > 0 ? (
-              <div className="flex flex-wrap gap-2">
-                {user.skills.map((skill, index) => (
-                  <span
-                    key={index}
-                    className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm"
-                  >
-                    {skill}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No skills added yet</p>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Profile Information</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            <p><strong>Name:</strong> {user.name}</p>
+                            <p><strong>Email:</strong> {user.email}</p>
+                            <p><strong>Role:</strong> {user.role}</p>
+                            <p><strong>Verified:</strong> {user.verified ? '✅ Yes' : '❌ No'}</p>
+                            <p><strong>Approved:</strong> {user.approved ? '✅ Yes' : '❌ No'}</p>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Skills</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {user.skills && user.skills.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {user.skills.map((skill, index) => (
+                                    <span
+                                        key={index}
+                                        className="px-2 py-1 bg-blue-100 text-blue-800 rounded-md text-sm"
+                                    >
+                                        {skill}
+                                    </span>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-gray-500">No skills added yet</p>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Quick Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-2">
+                            <Button className="w-full" variant="outline">
+                                Ask Question
+                            </Button>
+                            <Button className="w-full" variant="outline">
+                                Browse Questions
+                            </Button>
+                            <Button className="w-full" variant="outline">
+                                Update Profile
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {user.role === 'admin' && (
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Admin Panel</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>Admin features coming soon...</p>
+                    </CardContent>
+                </Card>
             )}
-          </CardContent>
-        </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Actions</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Button className="w-full" variant="outline">
-                Ask Question
-              </Button>
-              <Button className="w-full" variant="outline">
-                Browse Questions
-              </Button>
-              <Button className="w-full" variant="outline">
-                Update Profile
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {user.role === 'admin' && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Admin Panel</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Admin features coming soon...</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {user.role === 'moderator' && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle>Moderator Panel</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p>Moderator features coming soon...</p>
-          </CardContent>
-        </Card>
-      )}
-    </div>
-  )
+            {user.role === 'moderator' && (
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>Moderator Panel</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <p>Moderator features coming soon...</p>
+                    </CardContent>
+                </Card>
+            )}
+        </div>
+    )
 }

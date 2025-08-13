@@ -53,7 +53,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           token.role = dbUser.role;
           token.verified = dbUser.verified;
           token.approved = dbUser.approved;
-          token.skills = dbUser.skills;
+          // Convert skills to plain array to avoid serialization issues
+          token.skills = dbUser.skills ? [...dbUser.skills] : [];
         }
       }
       return token;
@@ -62,10 +63,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // Send properties to client
       if (token) {
         session.user.id = token.userId;
-        session.user.role = token.role;
-        session.user.verified = token.verified;
-        session.user.approved = token.approved;
-        session.user.skills = token.skills;
+        session.user.role = token.role || 'user';
+        session.user.verified = Boolean(token.verified);
+        session.user.approved = Boolean(token.approved);
+        session.user.skills = Array.isArray(token.skills) ? token.skills : [];
       }
       return session;
     },
