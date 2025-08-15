@@ -26,7 +26,11 @@ const priorityColors = {
 export function QuestionList({ 
   showFilters = true, 
   filterByAuthor = false,
-  onQuestionSelect,
+  filterByStatus = null,
+  filterByAssignee = null,
+  onQuestionView,
+  onQuestionAssign,
+  showActions = false,
   title = "Questions"
 }) {
   const { user } = useAuth()
@@ -43,7 +47,7 @@ export function QuestionList({
 
   useEffect(() => {
     fetchQuestions()
-  }, [filters])
+  }, [filters, filterByStatus, filterByAssignee])
 
   const fetchQuestions = async () => {
     try {
@@ -51,9 +55,15 @@ export function QuestionList({
       setError('')
 
       const params = new URLSearchParams()
-      if (filters.status !== 'all') params.append('status', filters.status)
+      
+      // Use filterByStatus prop if provided, otherwise use filters.status
+      const statusToUse = filterByStatus || (filters.status !== 'all' ? filters.status : null)
+      if (statusToUse) params.append('status', statusToUse)
+      
       if (filters.skill) params.append('skill', filters.skill)
+      if (filters.search) params.append('search', filters.search)
       if (filterByAuthor && user?.id) params.append('author', user.id)
+      if (filterByAssignee) params.append('assignedTo', filterByAssignee)
       params.append('page', filters.page.toString())
       params.append('limit', '10')
 
@@ -196,10 +206,7 @@ export function QuestionList({
         {questions.map((question) => (
           <Card 
             key={question.id} 
-            className={`hover:shadow-md transition-shadow cursor-pointer ${
-              onQuestionSelect ? 'hover:bg-gray-50' : ''
-            }`}
-            onClick={() => onQuestionSelect?.(question)}
+            className="hover:shadow-md transition-shadow"
           >
             <CardContent className="p-6">
               <div className="flex justify-between items-start mb-3">
@@ -257,6 +264,27 @@ export function QuestionList({
                   </span>
                 </div>
               </div>
+
+              {/* Action Buttons */}
+              {showActions && (
+                <div className="flex justify-end space-x-2 mt-4 pt-4 border-t border-gray-200">
+                  <Button
+                    onClick={() => onQuestionView?.(question)}
+                    variant="outline"
+                    size="sm"
+                  >
+                    View Details
+                  </Button>
+                  {onQuestionAssign && question.status === 'pending' && (
+                    <Button
+                      onClick={() => onQuestionAssign?.(question)}
+                      size="sm"
+                    >
+                      Assign to Me
+                    </Button>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

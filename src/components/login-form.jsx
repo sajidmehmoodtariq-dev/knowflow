@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { signIn } from "next-auth/react"
-import { apiService } from "@/lib/api-service"
+import { useAuth } from "@/lib/auth-context"
 
 export function LoginForm({
   className,
@@ -21,6 +21,7 @@ export function LoginForm({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({
@@ -37,7 +38,7 @@ export function LoginForm({
     setError('');
 
     try {
-      const response = await apiService.login({
+      await login({
         email: formData.email,
         password: formData.password
       });

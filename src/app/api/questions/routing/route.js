@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { auth } from '../../../../../auth.js';
+import { verifyToken } from '@/lib/auth-middleware';
 import { 
   autoAssignQuestion, 
   getRoutingStats, 
@@ -11,8 +12,26 @@ import User from '@/models/User';
 
 export async function POST(request) {
   try {
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -21,8 +40,7 @@ export async function POST(request) {
 
     await connectDB();
     
-    // Check user permissions (admin or moderator)
-    const user = await User.findById(session.user.id);
+    // Check user permissions (admin or moderator) - user is already loaded
     if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },
@@ -92,8 +110,26 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -102,8 +138,7 @@ export async function GET(request) {
 
     await connectDB();
     
-    // Check user permissions
-    const user = await User.findById(session.user.id);
+    // Check user permissions - user is already loaded
     if (!user || (user.role !== 'admin' && user.role !== 'moderator')) {
       return NextResponse.json(
         { error: 'Insufficient permissions' },

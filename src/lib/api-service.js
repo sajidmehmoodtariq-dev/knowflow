@@ -20,7 +20,21 @@ class ApiService {
       }
 
       const response = await fetch(`${API_BASE_URL}${url}`, config);
-      const data = await response.json();
+      
+      let data = {};
+      try {
+        // Only try to parse JSON if there's content and it's JSON
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          data = await response.json();
+        } else {
+          // For non-JSON responses, create a basic error object
+          data = { error: `HTTP ${response.status}: ${response.statusText}` };
+        }
+      } catch (jsonError) {
+        // If JSON parsing fails, create a basic error object
+        data = { error: `HTTP ${response.status}: ${response.statusText}` };
+      }
 
       if (!response.ok) {
         throw new Error(data.error || `HTTP error! status: ${response.status}`);

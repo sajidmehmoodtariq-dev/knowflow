@@ -3,13 +3,31 @@ import { connectDB } from '@/lib/mongodb';
 import Question from '@/models/Question';
 import User from '@/models/User';
 import { auth } from '../../../../auth.js';
+import { verifyToken } from '@/lib/auth-middleware';
 import { analyzeQuestionForSkills } from '@/lib/gemini';
 
 export async function POST(request) {
   try {
-    // Check authentication
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -42,8 +60,7 @@ export async function POST(request) {
 
     await connectDB();
 
-    // Find user in database
-    const user = await User.findById(session.user.id);
+    // User is already loaded from authentication step above
     if (!user) {
       return NextResponse.json(
         { error: 'User not found' },
@@ -70,7 +87,7 @@ export async function POST(request) {
     const question = new Question({
       title,
       content,
-      author: session.user.id,
+      author: userId,
       suggestedSkills,
       tags: tags.slice(0, 10), // Limit tags
     });
@@ -107,8 +124,26 @@ export async function POST(request) {
 
 export async function GET(request) {
   try {
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
@@ -121,6 +156,7 @@ export async function GET(request) {
     const status = searchParams.get('status');
     const skill = searchParams.get('skill');
     const author = searchParams.get('author');
+    const assignedTo = searchParams.get('assignedTo');
 
     await connectDB();
 
@@ -138,12 +174,15 @@ export async function GET(request) {
     if (author) {
       query.author = author;
     }
+    
+    if (assignedTo) {
+      query.assignedTo = assignedTo;
+    }
 
-    // Get user to check if they can see all questions or just their own
-    const user = await User.findById(session.user.id);
-    if (user.role === 'user' && !author) {
-      // Regular users can only see their own questions by default
-      query.author = session.user.id;
+    // User is already loaded from authentication step above
+    if (user.role === 'user' && !author && !assignedTo) {
+      // Regular users can only see their own questions by default unless explicitly querying by author or assignment
+      query.author = userId;
     }
 
     const skip = (page - 1) * limit;

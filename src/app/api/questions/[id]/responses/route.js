@@ -3,18 +3,38 @@ import { connectDB } from '@/lib/mongodb';
 import Question from '@/models/Question';
 import User from '@/models/User';
 import { auth } from '../../../../../../auth.js';
+import { verifyToken } from '@/lib/auth-middleware';
 
 export async function POST(request, { params }) {
   try {
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    const questionId = params.id;
+    const { id } = await params;
+    const questionId = id;
     const { content, isAnswer = false } = await request.json();
 
     if (!content || content.trim().length === 0) {
@@ -33,12 +53,11 @@ export async function POST(request, { params }) {
 
     await connectDB();
 
-    // Check user permissions (only moderators and admins can respond)
-    const user = await User.findById(session.user.id);
-    if (!user || (user.role !== 'moderator' && user.role !== 'admin')) {
+    // User is already loaded from authentication step above
+    if (!user) {
       return NextResponse.json(
-        { error: 'Only moderators and admins can respond to questions' },
-        { status: 403 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
@@ -59,13 +78,13 @@ export async function POST(request, { params }) {
     }
 
     // Add response to question
-    await question.addResponse(session.user.id, content, isAnswer);
+    await question.addResponse(userId, content, isAnswer);
 
     // Populate the question with updated data
     await question.populate([
-      { path: 'author', select: 'name email' },
-      { path: 'assignedTo', select: 'name email' },
-      { path: 'responses.moderator', select: 'name email' }
+      { path: 'author', select: 'name email role' },
+      { path: 'assignedTo', select: 'name email role' },
+      { path: 'responses.moderator', select: 'name email role' }
     ]);
 
     // Get the newly added response
@@ -78,7 +97,7 @@ export async function POST(request, { params }) {
         id: newResponse._id,
         content: newResponse.content,
         isAnswer: newResponse.isAnswer,
-        moderator: newResponse.moderator,
+        author: newResponse.moderator, // Map moderator to author for consistent frontend
         createdAt: newResponse.createdAt,
       },
       question: {
@@ -100,21 +119,40 @@ export async function POST(request, { params }) {
 
 export async function GET(request, { params }) {
   try {
-    const session = await auth();
-    if (!session || !session.user) {
+    // Check authentication - try JWT token first, then NextAuth session
+    let user = null;
+    let userId = null;
+
+    // Try JWT token authentication first
+    const { user: tokenUser, error: tokenError } = await verifyToken(request);
+    if (tokenUser) {
+      user = tokenUser;
+      userId = tokenUser._id;
+    } else {
+      // Fall back to NextAuth session
+      const session = await auth();
+      if (session?.user) {
+        await connectDB();
+        user = await User.findById(session.user.id);
+        userId = session.user.id;
+      }
+    }
+
+    if (!user) {
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
-    const questionId = params.id;
+    const { id } = await params;
+    const questionId = id;
 
     await connectDB();
 
     const question = await Question.findById(questionId)
-      .populate('responses.moderator', 'name email')
-      .select('responses');
+      .populate('responses.moderator', 'name email role')
+      .select('responses author');
 
     if (!question) {
       return NextResponse.json(
@@ -123,14 +161,11 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Check if user can view responses
-    const user = await User.findById(session.user.id);
-    const fullQuestion = await Question.findById(questionId).select('author');
-    
-    if (user.role === 'user' && !fullQuestion.author.equals(session.user.id)) {
+    // Check if user can view responses (all authenticated users can view) - user is already loaded from authentication
+    if (!user) {
       return NextResponse.json(
-        { error: 'Access denied' },
-        { status: 403 }
+        { error: 'User not found' },
+        { status: 404 }
       );
     }
 
@@ -140,7 +175,7 @@ export async function GET(request, { params }) {
         id: response._id,
         content: response.content,
         isAnswer: response.isAnswer,
-        moderator: response.moderator,
+        author: response.moderator, // Map moderator to author for consistent frontend
         createdAt: response.createdAt,
       })),
     });

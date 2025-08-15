@@ -225,9 +225,26 @@ export function UserDashboard({ user }) {
       case 'ask-question':
         return <QuestionForm onSuccess={handleQuestionSubmitted} />
       case 'my-questions':
-        return <QuestionList filterByAuthor={true} title="My Questions" />
+        return (
+          <QuestionList 
+            filterByAuthor={true} 
+            title="My Questions" 
+            showActions={true}
+            onQuestionView={(question) => {
+              window.location.href = `/questions/${question.id}`;
+            }}
+          />
+        )
       case 'browse':
-        return <QuestionList title="Browse Questions" />
+        return (
+          <QuestionList 
+            title="Browse Questions" 
+            showActions={true}
+            onQuestionView={(question) => {
+              window.location.href = `/questions/${question.id}`;
+            }}
+          />
+        )
       default:
         return renderOverview()
     }
