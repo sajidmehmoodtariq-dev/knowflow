@@ -140,6 +140,45 @@ class ApiService {
     const user = this.getUser();
     return user?.approved === true;
   }
+
+  // HTTP Methods
+  async get(url, options = {}) {
+    return this.makeRequest(url, {
+      method: 'GET',
+      ...options,
+    });
+  }
+
+  async post(url, data = null, options = {}) {
+    return this.makeRequest(url, {
+      method: 'POST',
+      body: data ? JSON.stringify(data) : null,
+      ...options,
+    });
+  }
+
+  async put(url, data = null, options = {}) {
+    return this.makeRequest(url, {
+      method: 'PUT',
+      body: data ? JSON.stringify(data) : null,
+      ...options,
+    });
+  }
+
+  async patch(url, data = null, options = {}) {
+    return this.makeRequest(url, {
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : null,
+      ...options,
+    });
+  }
+
+  async delete(url, options = {}) {
+    return this.makeRequest(url, {
+      method: 'DELETE',
+      ...options,
+    });
+  }
 }
 
 // Export singleton instance

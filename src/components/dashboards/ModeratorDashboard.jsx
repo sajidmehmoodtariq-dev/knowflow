@@ -1,55 +1,103 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  Users, 
-  MessageCircle, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle, 
-  TrendingUp,
-  Award,
-  Target
-} from 'lucide-react'
+import { QuestionList } from '@/components/QuestionList'
+import { apiService } from '@/lib/api-service'
+import { MessageSquare, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 
 export function ModeratorDashboard({ user }) {
-  return (
+  const [activeTab, setActiveTab] = useState('overview')
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [assignedQuestions, setAssignedQuestions] = useState([])
+
+  useEffect(() => {
+    fetchModeratorStats()
+    fetchAssignedQuestions()
+  }, [])
+
+  const fetchModeratorStats = async () => {
+    try {
+      const response = await apiService.get('/api/questions/routing')
+      if (response.success) {
+        const moderatorStat = response.stats.moderators.find(m => m._id === user.id)
+        setStats(moderatorStat || { totalAssigned: 0, activeQuestions: 0 })
+      }
+    } catch (error) {
+      console.error('Failed to fetch moderator stats:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const fetchAssignedQuestions = async () => {
+    try {
+      const response = await apiService.get(`/api/questions?status=assigned&assignedTo=${user.id}`)
+      if (response.success) {
+        setAssignedQuestions(response.questions)
+      }
+    } catch (error) {
+      console.error('Failed to fetch assigned questions:', error)
+    }
+  }
+
+  const handleAssignQuestion = async (questionId, action = 'self-assign') => {
+    try {
+      const response = await apiService.post(`/api/questions/${questionId}/assign`, { action })
+      if (response.success) {
+        fetchModeratorStats()
+        fetchAssignedQuestions()
+        // Optionally show success message
+      }
+    } catch (error) {
+      console.error('Failed to assign question:', error)
+    }
+  }
+
+  const renderOverview = () => (
     <div className="space-y-8">
       {/* Welcome Section */}
       <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-lg p-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">
-              Moderator Dashboard 🎯
-            </h1>
-            <p className="text-gray-600">
-              Welcome, {user.name}! Help users by answering questions in your expertise areas.
-            </p>
-          </div>
-          <div className="text-right">
-            <Badge variant="secondary" className="mb-2">
-              {user.approved ? 'Approved Moderator' : 'Pending Approval'}
-            </Badge>
-            <div className="text-sm text-gray-600">
-              Skills: {user.skills?.length > 0 ? user.skills.join(', ') : 'No skills assigned yet'}
-            </div>
-          </div>
-        </div>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          Moderator Dashboard 🛡️
+        </h1>
+        <p className="text-gray-600">
+          Welcome {user.name}, ready to help the community?
+        </p>
       </div>
 
-      {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
               <div className="bg-blue-100 p-3 rounded-lg">
-                <MessageCircle className="h-6 w-6 text-blue-600" />
+                <MessageSquare className="h-6 w-6 text-blue-600" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold">0</h3>
-                <p className="text-sm text-gray-600">Assigned Questions</p>
+                <div className="text-2xl font-bold text-blue-600">
+                  {loading ? '...' : (stats?.totalAssigned || 0)}
+                </div>
+                <p className="text-sm text-gray-600">Total Assigned</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-4">
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <Clock className="h-6 w-6 text-orange-600" />
+              </div>
+              <div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {loading ? '...' : (stats?.activeQuestions || 0)}
+                </div>
+                <p className="text-sm text-gray-600">Active Questions</p>
               </div>
             </div>
           </CardContent>
@@ -62,22 +110,10 @@ export function ModeratorDashboard({ user }) {
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold">0</h3>
-                <p className="text-sm text-gray-600">Answered</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <div className="bg-yellow-100 p-3 rounded-lg">
-                <Clock className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div>
-                <h3 className="text-2xl font-bold">0</h3>
-                <p className="text-sm text-gray-600">Pending</p>
+                <div className="text-2xl font-bold text-green-600">
+                  {loading ? '...' : ((stats?.totalAssigned || 0) - (stats?.activeQuestions || 0))}
+                </div>
+                <p className="text-sm text-gray-600">Completed</p>
               </div>
             </div>
           </CardContent>
@@ -87,89 +123,187 @@ export function ModeratorDashboard({ user }) {
           <CardContent className="p-6">
             <div className="flex items-center space-x-4">
               <div className="bg-purple-100 p-3 rounded-lg">
-                <Award className="h-6 w-6 text-purple-600" />
+                <AlertCircle className="h-6 w-6 text-purple-600" />
               </div>
               <div>
-                <h3 className="text-2xl font-bold">0</h3>
-                <p className="text-sm text-gray-600">Rating</p>
+                <div className="text-2xl font-bold text-purple-600">
+                  {user.approved ? '✅' : '⏳'}
+                </div>
+                <p className="text-sm text-gray-600">Status</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Assigned Questions */}
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <Target className="h-5 w-5" />
-              <span>Questions Assigned to You</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {user.approved ? (
-              <div className="text-center py-8 text-gray-500">
-                <MessageCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                <p>No questions assigned yet.</p>
-                <p className="text-sm">Questions will appear here when AI routes them to you based on your skills.</p>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <AlertCircle className="h-12 w-12 mx-auto mb-4 text-amber-400" />
-                <h3 className="font-semibold text-gray-900 mb-2">Approval Pending</h3>
-                <p className="text-gray-600">Your moderator account is pending admin approval.</p>
-                <p className="text-sm text-gray-500 mt-2">
-                  You'll start receiving questions once approved.
-                </p>
-              </div>
-            )}
+      {/* Quick Actions */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => setActiveTab('pending')}
+        >
+          <CardContent className="p-6 text-center">
+            <MessageSquare className="h-8 w-8 mx-auto mb-3 text-blue-600" />
+            <h3 className="font-semibold mb-1">Pending Questions</h3>
+            <p className="text-sm text-gray-600">Questions awaiting assignment</p>
           </CardContent>
         </Card>
 
-        {/* Quick Actions & Info */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button className="w-full" variant="outline" disabled={!user.approved}>
-                View All Questions
-              </Button>
-              <Button className="w-full" variant="outline">
-                Update Profile
-              </Button>
-              <Button className="w-full" variant="outline">
-                Request Skills Update
-              </Button>
-            </CardContent>
-          </Card>
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => setActiveTab('assigned')}
+        >
+          <CardContent className="p-6 text-center">
+            <Clock className="h-8 w-8 mx-auto mb-3 text-orange-600" />
+            <h3 className="font-semibold mb-1">My Assignments</h3>
+            <p className="text-sm text-gray-600">Questions assigned to you</p>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Performance This Week</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Response Time</span>
-                  <span className="text-sm font-medium">N/A</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Satisfaction Rate</span>
-                  <span className="text-sm font-medium">N/A</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Questions Solved</span>
-                  <span className="text-sm font-medium">0</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <Card 
+          className="hover:shadow-lg transition-shadow cursor-pointer"
+          onClick={() => setActiveTab('all')}
+        >
+          <CardContent className="p-6 text-center">
+            <AlertCircle className="h-8 w-8 mx-auto mb-3 text-purple-600" />
+            <h3 className="font-semibold mb-1">All Questions</h3>
+            <p className="text-sm text-gray-600">Browse all questions</p>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Skills Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Your Expertise Areas</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {user.skills && user.skills.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {user.skills.map((skill, index) => (
+                <Badge key={index} className="bg-blue-100 text-blue-800 text-sm">
+                  {skill}
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-6 text-gray-500">
+              <p>No skills assigned yet.</p>
+              <p className="text-sm mt-1">Contact an administrator to set your expertise areas.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Recent Assigned Questions */}
+      {assignedQuestions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Recent Assignments</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {assignedQuestions.slice(0, 3).map((question) => (
+                <div key={question.id} className="border-l-4 border-blue-500 pl-4">
+                  <h4 className="font-medium text-gray-900 line-clamp-1">
+                    {question.title}
+                  </h4>
+                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                    {question.summary}
+                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <div className="flex space-x-2">
+                      <Badge className="text-xs" variant="outline">
+                        {question.status}
+                      </Badge>
+                      <Badge className="text-xs" variant="secondary">
+                        {question.priority}
+                      </Badge>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {new Date(question.createdAt).toLocaleDateString()}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {assignedQuestions.length > 3 && (
+                <Button
+                  onClick={() => setActiveTab('assigned')}
+                  variant="outline"
+                  className="w-full mt-4"
+                >
+                  View All Assignments ({assignedQuestions.length})
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  )
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'overview':
+        return renderOverview()
+      case 'pending':
+        return (
+          <QuestionList 
+            title="Pending Questions"
+            showFilters={true}
+            onQuestionSelect={(question) => {
+              // Handle question selection for assignment
+              handleAssignQuestion(question.id)
+            }}
+          />
+        )
+      case 'assigned':
+        return (
+          <QuestionList 
+            title="My Assigned Questions"
+            showFilters={false}
+          />
+        )
+      case 'all':
+        return (
+          <QuestionList 
+            title="All Questions"
+            showFilters={true}
+          />
+        )
+      default:
+        return renderOverview()
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Navigation */}
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8">
+          {[
+            { key: 'overview', label: 'Overview' },
+            { key: 'pending', label: 'Pending Questions' },
+            { key: 'assigned', label: 'My Assignments' },
+            { key: 'all', label: 'All Questions' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                activeTab === tab.key
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Content */}
+      {renderContent()}
     </div>
   )
 }
