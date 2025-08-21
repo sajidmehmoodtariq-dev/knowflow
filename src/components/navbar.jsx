@@ -31,30 +31,6 @@ export function Navbar() {
             </Link>
           </div>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:block">
-            <div className="ml-10 flex items-baseline space-x-4">
-              <Link
-                href="/browse"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Browse Questions
-              </Link>
-              <Link
-                href="/ask"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Ask Question
-              </Link>
-              <Link
-                href="/experts"
-                className="text-gray-700 hover:text-blue-600 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Find Experts
-              </Link>
-            </div>
-          </div>
-
           {/* Desktop Auth Buttons */}
           <div className="hidden md:block">
             {isAuthenticated() ? (
@@ -107,28 +83,6 @@ export function Navbar() {
         {isOpen && (
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white border-t border-gray-200">
-              <Link
-                href="/browse"
-                className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Browse Questions
-              </Link>
-              <Link
-                href="/ask"
-                className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Ask Question
-              </Link>
-              <Link
-                href="/experts"
-                className="text-gray-700 hover:text-blue-600 block px-3 py-2 rounded-md text-base font-medium transition-colors"
-                onClick={() => setIsOpen(false)}
-              >
-                Find Experts
-              </Link>
-              
               <div className="border-t border-gray-200 pt-4">
                 {isAuthenticated() ? (
                   <div className="space-y-2">
