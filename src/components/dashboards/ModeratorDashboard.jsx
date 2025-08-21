@@ -137,18 +137,7 @@ export function ModeratorDashboard({ user }) {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card 
-          className="hover:shadow-lg transition-shadow cursor-pointer"
-          onClick={() => setActiveTab('pending')}
-        >
-          <CardContent className="p-6 text-center">
-            <MessageSquare className="h-8 w-8 mx-auto mb-3 text-blue-600" />
-            <h3 className="font-semibold mb-1">Pending Questions</h3>
-            <p className="text-sm text-gray-600">Questions awaiting assignment</p>
-          </CardContent>
-        </Card>
-
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card 
           className="hover:shadow-lg transition-shadow cursor-pointer"
           onClick={() => setActiveTab('assigned')}
@@ -204,14 +193,14 @@ export function ModeratorDashboard({ user }) {
           <CardContent>
             <div className="space-y-4">
               {assignedQuestions.slice(0, 3).map((question) => (
-                <div key={question.id} className="border-l-4 border-blue-500 pl-4">
+                <div key={question.id} className="border-l-4 border-blue-500 pl-4 space-y-3">
                   <h4 className="font-medium text-gray-900 line-clamp-1">
                     {question.title}
                   </h4>
-                  <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                  <p className="text-sm text-gray-600 line-clamp-2">
                     {question.summary}
                   </p>
-                  <div className="flex items-center justify-between mt-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex space-x-2">
                       <Badge className="text-xs" variant="outline">
                         {question.status}
@@ -220,9 +209,19 @@ export function ModeratorDashboard({ user }) {
                         {question.priority}
                       </Badge>
                     </div>
-                    <span className="text-xs text-gray-500">
-                      {new Date(question.createdAt).toLocaleDateString()}
-                    </span>
+                    <div className="flex items-center space-x-3">
+                      <span className="text-xs text-gray-500">
+                        {new Date(question.createdAt).toLocaleDateString()}
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => window.location.href = `/questions/${question.id}`}
+                        className="text-xs px-2 py-1"
+                      >
+                        View Details
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -246,22 +245,17 @@ export function ModeratorDashboard({ user }) {
     switch (activeTab) {
       case 'overview':
         return renderOverview()
-      case 'pending':
-        return (
-          <QuestionList 
-            title="Pending Questions"
-            showFilters={true}
-            onQuestionSelect={(question) => {
-              // Handle question selection for assignment
-              handleAssignQuestion(question.id)
-            }}
-          />
-        )
       case 'assigned':
         return (
           <QuestionList 
             title="My Assigned Questions"
             showFilters={false}
+            filterByAssignee={user.id}
+            showActions={true}
+            onQuestionView={(question) => {
+              // Navigate to question detail page
+              window.location.href = `/questions/${question.id}`
+            }}
           />
         )
       case 'all':
@@ -269,6 +263,11 @@ export function ModeratorDashboard({ user }) {
           <QuestionList 
             title="All Questions"
             showFilters={true}
+            showActions={true}
+            onQuestionView={(question) => {
+              // Navigate to question detail page
+              window.location.href = `/questions/${question.id}`
+            }}
           />
         )
       default:
@@ -283,7 +282,6 @@ export function ModeratorDashboard({ user }) {
         <nav className="flex space-x-8">
           {[
             { key: 'overview', label: 'Overview' },
-            { key: 'pending', label: 'Pending Questions' },
             { key: 'assigned', label: 'My Assignments' },
             { key: 'all', label: 'All Questions' },
           ].map((tab) => (

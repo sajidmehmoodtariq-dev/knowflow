@@ -194,13 +194,22 @@ QuestionSchema.pre('save', async function(next) {
   if (this.isNew && !this.summary) {
     try {
       const { generateQuestionSummary } = await import('../lib/gemini.js');
-      this.summary = await generateQuestionSummary(this.content);
+      // Pass both content and title to generate better summary
+      this.summary = await generateQuestionSummary(this.content, this.title);
+      console.log('✅ AI-generated summary:', this.summary);
     } catch (error) {
-      console.error('Error generating summary:', error);
-      // Fallback summary
-      this.summary = this.content.length > 100 ? 
-        this.content.substring(0, 100) + '...' : 
-        this.content;
+      console.error('Error generating AI summary:', error);
+      // Better fallback summary using title and content
+      if (this.title && this.content) {
+        const combinedText = `${this.title}. ${this.content}`;
+        this.summary = combinedText.length > 150 ? 
+          combinedText.substring(0, 147) + '...' : 
+          combinedText;
+      } else {
+        this.summary = this.content.length > 150 ? 
+          this.content.substring(0, 147) + '...' : 
+          this.content;
+      }
     }
   }
   next();

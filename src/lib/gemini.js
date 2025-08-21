@@ -41,11 +41,22 @@ export async function analyzeQuestionForSkills(question, availableSkills = []) {
     const response = await result.response;
     const text = response.text().trim();
     
-    // Parse response and filter against available skills
+    // Parse response and filter against available skills (case-insensitive)
     const suggestedSkills = text
       .split(',')
       .map(skill => skill.trim())
-      .filter(skill => availableSkills.includes(skill))
+      .filter(skill => {
+        // Case-insensitive matching
+        return availableSkills.some(availableSkill => 
+          availableSkill.toLowerCase() === skill.toLowerCase()
+        );
+      })
+      .map(skill => {
+        // Return the actual skill name from availableSkills (preserving case)
+        return availableSkills.find(availableSkill => 
+          availableSkill.toLowerCase() === skill.toLowerCase()
+        );
+      })
       .slice(0, 3);
 
     return suggestedSkills;
@@ -61,30 +72,50 @@ export async function analyzeQuestionForSkills(question, availableSkills = []) {
 
 /**
  * Generate a summary of a question for moderators
- * @param {string} question - The user's question
- * @returns {Promise<string>} - Question summary
+ * @param {string} question - The user's question content
+ * @param {string} title - The question title (optional)
+ * @returns {Promise<string>} - Question summary/description
  */
-export async function generateQuestionSummary(question) {
+export async function generateQuestionSummary(question, title = '') {
   if (!genAI) {
-    // Simple fallback: return first 100 characters
-    return question.length > 100 ? question.substring(0, 100) + '...' : question;
+    // Simple fallback: return first 150 characters
+    return question.length > 150 ? question.substring(0, 150) + '...' : question;
   }
 
   try {
     const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
     
-    const prompt = `
-    Create a brief, clear summary of this question in 1-2 sentences.
-    Focus on the main problem or topic.
+    const fullContent = title ? `Title: ${title}\n\nContent: ${question}` : question;
     
-    Question: "${question}"
+    const prompt = `
+    Create a clear, professional summary/description of this question in 1-3 sentences.
+    Focus on:
+    - The main problem or issue being asked about
+    - Key technical details or context
+    - What kind of help the person needs
+    
+    Make it helpful for moderators to quickly understand the question.
+    Keep it under 250 characters.
+    
+    ${fullContent}
+    
+    Summary:
     `;
 
     const result = await model.generateContent(prompt);
     const response = await result.response;
-    return response.text().trim();
+    const summary = response.text().trim();
+    
+    // Ensure it's not too long
+    return summary.length > 290 ? summary.substring(0, 287) + '...' : summary;
   } catch (error) {
     console.error('Gemini AI error:', error);
-    return question.length > 100 ? question.substring(0, 100) + '...' : question;
+    // Better fallback: try to extract first sentence or meaningful chunk
+    const sentences = question.match(/[^.!?]+[.!?]+/g);
+    if (sentences && sentences.length > 0) {
+      const firstSentence = sentences[0].trim();
+      return firstSentence.length > 150 ? firstSentence.substring(0, 147) + '...' : firstSentence;
+    }
+    return question.length > 150 ? question.substring(0, 147) + '...' : question;
   }
 }

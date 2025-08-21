@@ -5,6 +5,7 @@ import User from '@/models/User';
 import { auth } from '../../../../auth.js';
 import { verifyToken } from '@/lib/auth-middleware';
 import { analyzeQuestionForSkills } from '@/lib/gemini';
+import { autoAssignQuestion } from '@/lib/question-routing';
 
 export async function POST(request) {
   try {
@@ -97,15 +98,31 @@ export async function POST(request) {
     // Populate author info for response
     await question.populate('author', 'name email');
 
+    // Attempt automatic assignment based on AI-suggested skills
+    let assignmentResult = null;
+    try {
+      assignmentResult = await autoAssignQuestion(question._id);
+      console.log('Auto-assignment result:', assignmentResult);
+      
+      // Reload question to get updated assignment status
+      await question.populate('assignedTo', 'name email');
+    } catch (assignmentError) {
+      console.error('Auto-assignment failed (non-critical):', assignmentError);
+      // Continue without failing the question submission
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Question submitted successfully',
+      autoAssigned: assignmentResult?.success || false,
+      assignmentMessage: assignmentResult?.message || null,
       question: {
         id: question._id,
         title: question.title,
         content: question.content,
         summary: question.summary,
         author: question.author,
+        assignedTo: question.assignedTo,
         status: question.status,
         suggestedSkills: question.suggestedSkills,
         tags: question.tags,
